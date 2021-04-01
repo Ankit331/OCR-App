@@ -28,6 +28,7 @@ public class MainActivity extends AppCompatActivity {
     TextView mTextView;
     CameraSource mCameraSource;
     Button stop;
+     TextRecognizer textRecognizer;
 
     private static final String TAG = "MainActivity";
     private static final int requestPermissionID = 101;
@@ -67,7 +68,7 @@ public class MainActivity extends AppCompatActivity {
     private void startCameraSource() {
 
         //Create the TextRecognizer
-        final TextRecognizer textRecognizer = new TextRecognizer.Builder(getApplicationContext()).build();
+         textRecognizer = new TextRecognizer.Builder(getApplicationContext()).build();
 
         if (!textRecognizer.isOperational()) {
             Log.w(TAG, "Detector dependencies not loaded yet");
@@ -162,6 +163,46 @@ public class MainActivity extends AppCompatActivity {
             // for ActivityCompat#requestPermissions for more details.
             return;
         }
-        mCameraSource.start();
+        //Initialize camerasource to use high resolution and set Autofocus on.
+        mCameraSource = new CameraSource.Builder(getApplicationContext(), textRecognizer)
+                .setFacing(CameraSource.CAMERA_FACING_BACK)
+                .setRequestedPreviewSize(1280, 1024)
+                .setAutoFocusEnabled(true)
+                .setRequestedFps(2.0f)
+                .build();
+
+        /**
+         * Add call back to SurfaceView and check if camera permission is granted.
+         * If permission is granted we can start our cameraSource and pass it to surfaceView
+         */
+        mCameraView.getHolder().addCallback(new SurfaceHolder.Callback() {
+            @Override
+            public void surfaceCreated(SurfaceHolder holder) {
+                try {
+
+                    if (ActivityCompat.checkSelfPermission(getApplicationContext(),
+                            Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+
+                        ActivityCompat.requestPermissions(MainActivity.this,
+                                new String[]{Manifest.permission.CAMERA},
+                                requestPermissionID);
+                        return;
+                    }
+                    mCameraSource.start(mCameraView.getHolder());
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            @Override
+            public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+            }
+
+            @Override
+            public void surfaceDestroyed(SurfaceHolder holder) {
+                mCameraSource.stop();
+            }
+        });
+        mCameraSource.start(mCameraView.getHolder());
     }
 }
